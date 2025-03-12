@@ -10,6 +10,7 @@ import android.net.NetworkRequest
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
 
@@ -34,7 +35,7 @@ class CheckNetworkConnection (private val connectivityManager: ConnectivityManag
         }
         override fun onLost(network: Network) {
             super.onLost(network)
-            checkActualInternetConnection()
+            postValue(NetworkState.DISCONNECTED)
 
         }
         override fun onCapabilitiesChanged(
@@ -63,15 +64,20 @@ class CheckNetworkConnection (private val connectivityManager: ConnectivityManag
     private fun checkActualInternetConnection() {
 
         if (isNetworkAvailable()) {
-            executorService.execute {
 
+            executorService.execute {
+                val isConnected = hasInternetAccess()
                 handler.post {
-                    if (hasInternetAccess()) {
+                    if (isConnected) {
                         postValue(NetworkState.CONNECTED)
                     } else {
+                        postValue(NetworkState.DISCONNECTED)
                         postValue(NetworkState.NO_INTERNET)
+
                     }
+
                 }
+
             }
         } else {
             postValue(NetworkState.DISCONNECTED)
@@ -90,7 +96,7 @@ class CheckNetworkConnection (private val connectivityManager: ConnectivityManag
             val urlConnection = URL("https://8.8.8.8").openConnection() as HttpURLConnection
             urlConnection.setRequestProperty("User-Agent", "Android")
             urlConnection.setRequestProperty("Connection", "close")
-            urlConnection.connectTimeout = 1500
+            urlConnection.connectTimeout = 500
             urlConnection.connect()
             return urlConnection.responseCode == 200
         } catch (e: IOException) {
